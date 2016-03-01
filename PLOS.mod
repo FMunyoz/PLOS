@@ -28,13 +28,24 @@
 #
 # BaldesCompatibles: Todos los baldes del palet deben ser compatibles (del mismo TipoDeBalde). 
 # Todos los baldes del palet dben ser de la misma sección.
+#
+# Parametros independientes
+#
+param TiposDeBalde := 3;
+param NumeroDeSecciones := 3;
+
+param NumeroDePaletsPosibles := 10;
+param CapasDeBaldes := 11;
+param AlturaDelPalet := 1950;
+param BaldesPorCapa := 4;
+
+
+param CapacidadDelPaletEnBaldes := CapasDeBaldes * BaldesPorCapa;
 
 # Conjuntos
 set IdBaldes dimen 2;
 
-# Parámetros
-param TiposDeBalde := 3;
-param NumerosDeSecciones := 3;
+# Parámetros Dependientes del conjunto
 param BaldesDelArticuloParaElCliente{(i,j) in IdBaldes};
 param TipoDeBalde{(i,j) in IdBaldes};
 param SeccionDelBalde{(i,j) in IdBaldes};
@@ -43,39 +54,37 @@ param AnchoDelBalde{(i,j) in IdBaldes};
 param AltoDelBalde{(i,j) in IdBaldes};
 
 set IdBaldesDeTipo{t in 1..TiposDeBalde} := setof{(i,j) in IdBaldes: TipoDeBalde[i,j] = t}(i,j);
-set IdBaldesDeSeccion{t in 1..NumerosDeSecciones} := setof{(i,j) in IdBaldes: SeccionDelBalde[i,j] = t}(i,j);
+set IdBaldesDeSeccion{t in 1..NumeroDeSecciones} := setof{(i,j) in IdBaldes: SeccionDelBalde[i,j] = t}(i,j);
 
 param TotalDeIdBaldesDeTipo{(i,j) in IdBaldes, t in 1..TiposDeBalde} := card({(l,m) in IdBaldesDeTipo[t]:i=l and j=m});
-param TotalDeIdBaldesDeSeccion{(i,j) in IdBaldes, t in 1..NumerosDeSecciones} := card({(l,m) in IdBaldesDeSeccion[t]:i=l and j=m});
-
-param NumeroDePaletsPosibles := 360;
-param CapasDeBaldes := 11;
-param AlturaDelPalet := 1950;
-param BaldesPorCapa := 4;
-param CapacidadDelPaletEnBaldes := CapasDeBaldes * BaldesPorCapa;
+param TotalDeIdBaldesDeSeccion{(i,j) in IdBaldes, t in 1..NumeroDeSecciones} := card({(l,m) in IdBaldesDeSeccion[t]:i=l and j=m});
 
 #variables
 
 var IdBaldeEnPalet{IdBaldes, 1..NumeroDePaletsPosibles}, binary;
 var IdBaldeCompatibleEnPalet{IdBaldes, 1..NumeroDePaletsPosibles}, binary;
 var IdBaldeMismaSeccionEnPalet{IdBaldes, 1..NumeroDePaletsPosibles}, binary;
-var BaldesEnPalet{1..NumeroDePaletsPosibles} >= 0, integer;
-var BaldesDelIdBaldeEnPalet{(i,j) in IdBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
+var BaldesEnColumnaDelPalet{1..CapasDeBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
+var BaldesDelIdBaldeEnColumnaDelPalet{c in 1..BaldesPorCapa, (i,j) in IdBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
 
 #Restricciones generales del modelo
-subject to MinimoNumeroDePalets: round(sum{(i,j) in IdBaldes} BaldesDelArticuloParaElCliente[i,j]/(CapasDeBaldes*BaldesPorCapa)) <= sum {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles} IdBaldeEnPalet[i,j,k];
-subject to TotalDeBaldesEnFragmentos {(i,j) in IdBaldes}: sum{k in 1..NumeroDePaletsPosibles} BaldesDelIdBaldeEnPalet[i,j,k] = BaldesDelArticuloParaElCliente[i,j];
-subject to CadaPaletNoDebeExcederse {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnPalet[i, j, k] <= CapasDeBaldes*BaldesPorCapa;
-subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnPalet[i, j, k] = BaldesEnPalet[k];
+#subject to MinimoNumeroDePalets: round(sum{(i,j) in IdBaldes} BaldesDelArticuloParaElCliente[i,j]/(CapasDeBaldes*BaldesPorCapa)) <= sum {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles} IdBaldeEnPalet[i,j,k];
+#subject to DebeHaberAlMenosUnPaletPorSeccion: round(sum{(i,j) in IdBaldes} BaldesDelArticuloParaElCliente[i,j]/(CapasDeBaldes*BaldesPorCapa)) >= NumeroDeSecciones;
 
-subject to PaletEsUsadoParaIdBalde {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: BaldesDelIdBaldeEnPalet[i,j,k] / BaldesDelArticuloParaElCliente[i,j] <= IdBaldeEnPalet[i,j,k];
-subject to NumeroDeCortesEnFuncionDeBaldes {(i,j) in IdBaldes}: sum{k in 1..NumeroDePaletsPosibles} BaldesDelIdBaldeEnPalet[i,j,k] >= BaldesDelArticuloParaElCliente[i,j];
+subject to TotalDeBaldesEnFragmentos {(i,j) in IdBaldes}: sum{c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles} BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] = BaldesDelArticuloParaElCliente[i,j];
+subject to CadaPaletNoDebeExcederse {k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa, (i,j) in IdBaldes}BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] <= CapasDeBaldes*BaldesPorCapa;
+subject to CadaColumnaDelPaletNoDebeExcederse {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] <= CapasDeBaldes;
+subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa, (i,j) in IdBaldes}BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] = sum{c in 1..CapasDeBaldes}BaldesEnColumnaDelPalet[c, k];
+subject to LaSumaDeBaldesEnColumnaEsCoherente {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] = BaldesEnColumnaDelPalet[c, k];
+
+subject to PaletEsUsadoParaIdBalde {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa}BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] / BaldesDelArticuloParaElCliente[i,j] <= IdBaldeEnPalet[i,j,k];
+subject to NumeroDeCortesEnFuncionDeBaldes {(i,j) in IdBaldes}: sum{c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles} BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] >= BaldesDelArticuloParaElCliente[i,j];
 
 # Los baldes deben ser del mismo tipo
 subject to TodosLosIdBaldesDebenSerCompatibles {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: sum{t in 1..TiposDeBalde} TotalDeIdBaldesDeTipo[i,j,t] *  IdBaldeCompatibleEnPalet[i,j,k]  =  sum{(l,m) in IdBaldes}IdBaldeEnPalet[l,m,k];
 
 # Los baldes deben ser de la misma seccion
-subject to TodosLosIdBaldesDebenSerDeLaMismaSeccion {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: sum{t in 1..NumerosDeSecciones} TotalDeIdBaldesDeSeccion[i,j,t] *  IdBaldeMismaSeccionEnPalet[i,j,k]  =  sum{(l,m) in IdBaldes}IdBaldeEnPalet[l,m,k];
+subject to TodosLosIdBaldesDebenSerDeLaMismaSeccion {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: sum{t in 1..NumeroDeSecciones} TotalDeIdBaldesDeSeccion[i,j,t] *  IdBaldeMismaSeccionEnPalet[i,j,k]  =  sum{(l,m) in IdBaldes}IdBaldeEnPalet[l,m,k];
 
 
 # Objetivo
@@ -84,12 +93,10 @@ display IdBaldesDeTipo;
 display TotalDeIdBaldesDeTipo;
 solve;
 
-#printf '-----------------------------------------------\n';
-#for  {k in 1..NumeroDePaletsPosibles: BaldesEnPalet[k] > 0} printf '%d %d %d\n', k, sum{(i,j) in IdBaldes, t in 1..TiposDeBalde} TotalDeIdBaldesDeTipo[i,j,t] *  IdBaldeCompatibleEnPalet[i,j,k] , sum{(i,j) in IdBaldes}IdBaldeEnPalet[i,j,k];
 printf '-----------------------------------------------\n';
-for {k in 1..NumeroDePaletsPosibles, (i,j) in IdBaldes: BaldesDelIdBaldeEnPalet[i,j,k] > 0} printf 'Palet: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%d\n', k, i, j, BaldesDelIdBaldeEnPalet[i,j,k],TipoDeBalde[i,j], SeccionDelBalde[i,j];
+for {k in 1..NumeroDePaletsPosibles, c in 1..BaldesPorCapa, (i,j) in IdBaldes: BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%d\n', k, c, i, j, BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j], SeccionDelBalde[i,j];
 printf '-----------------------------------------------\n';
-display BaldesEnPalet;
+display BaldesEnColumnaDelPalet;
 
 # Datos
 data;
@@ -99,11 +106,11 @@ set IdBaldes := ('Cliente1', 'Articulo1'),
 				('Cliente2', 'Articulo2'),
 				('Cliente2', 'Articulo3');
 
-param BaldesDelArticuloParaElCliente := ['Cliente1', 'Articulo1'] 140,
-										['Cliente1', 'Articulo2'] 150,
-										['Cliente2', 'Articulo1'] 10,
-										['Cliente2', 'Articulo2'] 10,
-										['Cliente2', 'Articulo3'] 50;
+param BaldesDelArticuloParaElCliente := ['Cliente1', 'Articulo1'] 88,
+										['Cliente1', 'Articulo2'] 50,
+										['Cliente2', 'Articulo1'] 44,
+										['Cliente2', 'Articulo2'] 11,
+										['Cliente2', 'Articulo3'] 11;
 
 param TipoDeBalde := ['Cliente1', 'Articulo1'] 1,
 					 ['Cliente1', 'Articulo2'] 2,
