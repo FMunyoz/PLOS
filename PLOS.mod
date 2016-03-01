@@ -35,9 +35,11 @@
 param TiposDeBalde := 2;
 param NumeroDeSecciones := 9;
 
-param NumeroDePaletsPosibles := 160;
+param NumeroDePaletsPosibles := 100;
 param CapasDeBaldes := 8;
-param AlturaDelPalet := 1950;
+param AltoDelPalet := 1950;
+param AnchoDelPalet := 800;
+param LargoDelPalet := 1200;
 param BaldesPorCapa := 4;
 
 
@@ -56,11 +58,10 @@ param AltoDelBalde{(i,j) in IdBaldes};
 
 #Lectura de datos
 
-table tin IN 'CSV' 'C:\gusek_0-2-19\gusek\Ped_Export_OPTIMIZADOR_4.csv' :
-IdBaldes <- [NombreDeGrupo, ArticuloDelBalde], BaldesDelArticuloParaElCliente ~ CantidadDeBaldes, TipoDeBalde ~ TipoDeBalde;
+table tin IN 'CSV' 'C:\gusek_0-2-19\gusek\Modelos\PED_Export_OPTIMIZADOR_Alimerka.csv	' :
+IdBaldes <- [NombreDeGrupo, ArticuloDelBalde], BaldesDelArticuloParaElCliente ~ CantidadDeBaldes, TipoDeBalde ~ TipoDeBalde, AltoDelBalde, AnchoDelBalde, LargoDelBalde;
 
 param SeccionDelBalde{(i,j) in IdBaldes} := substr(i, 2,1);
-display SeccionDelBalde;
 set IdBaldesDeTipo{t in 1..TiposDeBalde} := setof{(i,j) in IdBaldes: TipoDeBalde[i,j] = t}(i,j);
 set IdBaldesDeSeccion{t in 1..NumeroDeSecciones} := setof{(i,j) in IdBaldes: SeccionDelBalde[i,j] = t}(i,j);
 
@@ -76,12 +77,16 @@ var BaldesEnColumnaDelPalet{1..CapasDeBaldes, 1..NumeroDePaletsPosibles} >= 0, i
 var BaldesDelIdBaldeEnColumnaDelPalet{c in 1..BaldesPorCapa, (i,j) in IdBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
 
 #Restricciones generales del modelo
-#subject to MinimoNumeroDePalets: round(sum{(i,j) in IdBaldes} BaldesDelArticuloParaElCliente[i,j]/(CapasDeBaldes*BaldesPorCapa)) <= sum {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles} IdBaldeEnPalet[i,j,k];
-#subject to DebeHaberAlMenosUnPaletPorSeccion: round(sum{(i,j) in IdBaldes} BaldesDelArticuloParaElCliente[i,j]/(CapasDeBaldes*BaldesPorCapa)) >= NumeroDeSecciones;
 
 subject to TotalDeBaldesEnFragmentos {(i,j) in IdBaldes}: sum{c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles} BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] = BaldesDelArticuloParaElCliente[i,j];
+
+#Restricciones de capacidad del palet
 subject to CadaPaletNoDebeExcederse {k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa, (i,j) in IdBaldes}BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] <= CapasDeBaldes*BaldesPorCapa;
-subject to CadaColumnaDelPaletNoDebeExcederse {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] <= CapasDeBaldes;
+subject to CadaColumnaDelPaletNoDebeExcederse {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}(BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] * AltoDelBalde[i,j]) <= AltoDelPalet;
+subject to CalculoAnchoDeLaColumna {c in 1..BaldesPorCapa, (i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}:BaldesEnColumnaDelPalet[c, k] - (BaldesEnColumnaDelPalet[c, k] - 1) * AnchoDelBalde[i,j]*LargoDelBalde[i,j] <= AnchoDelPalet * LargoDelPalet;
+
+
+#Restricciones de coerencia del palet
 subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa, (i,j) in IdBaldes}BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] = sum{c in 1..CapasDeBaldes}BaldesEnColumnaDelPalet[c, k];
 subject to LaSumaDeBaldesEnColumnaEsCoherente {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnColumnaDelPalet[c, i, j, k] = BaldesEnColumnaDelPalet[c, k];
 
@@ -97,61 +102,11 @@ subject to TodosLosIdBaldesDebenSerDeLaMismaSeccion {(i,j) in IdBaldes, k in 1..
 
 # Objetivo
 minimize NumeroDeFragmentos: sum {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles} IdBaldeEnPalet[i,j,k];
-display IdBaldesDeTipo;
-display TotalDeIdBaldesDeTipo;
 solve;
-
+table Salida {k in 1..NumeroDePaletsPosibles, c in 1..BaldesPorCapa, (i,j) in IdBaldes: BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\gusek_0-2-19\gusek\Modelos\TRMOSAICO_Alimerka.csv":
+k, i, j, BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k], c;
 printf '-----------------------------------------------\n';
-for {k in 1..NumeroDePaletsPosibles, c in 1..BaldesPorCapa, (i,j) in IdBaldes: BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:\n', k, c, i, j, BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j];
-#, SeccionDelBalde[i,j];
+for {k in 1..NumeroDePaletsPosibles, c in 1..BaldesPorCapa, (i,j) in IdBaldes: BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%d\n', k, c, i, j, BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j], SeccionDelBalde[i,j];
 printf '-----------------------------------------------\n';
-#display BaldesEnColumnaDelPalet;
-
-# Datos
-data;
-
-/*set IdBaldes := ('Cliente1', 'Articulo1'),
-				('Cliente1', 'Articulo2'),
-				('Cliente2', 'Articulo1'),
-				('Cliente2', 'Articulo2'),
-				('Cliente2', 'Articulo3');
-
-param BaldesDelArticuloParaElCliente := ['Cliente1', 'Articulo1'] 100,
-										['Cliente1', 'Articulo2'] 50,
-										['Cliente2', 'Articulo1'] 44,
-										['Cliente2', 'Articulo2'] 11,
-										['Cliente2', 'Articulo3'] 11;
-
-param TipoDeBalde := ['Cliente1', 'Articulo1'] 1,
-					 ['Cliente1', 'Articulo2'] 2,
-					 ['Cliente2', 'Articulo1'] 1,
-					 ['Cliente2', 'Articulo2'] 2,
-					 ['Cliente2', 'Articulo3'] 2; 
-					 
-param SeccionDelBalde := ['Cliente1', 'Articulo1'] 2,
-						['Cliente1', 'Articulo2'] 1,
-						['Cliente2', 'Articulo1'] 2,
-						['Cliente2', 'Articulo2'] 1,
-						['Cliente2', 'Articulo3'] 2;
-						
-param LargoDelBalde := 	['Cliente1', 'Articulo1'] 595,
-						['Cliente1', 'Articulo2'] 595,
-						['Cliente2', 'Articulo1'] 595,
-						['Cliente2', 'Articulo2'] 595,
-						['Cliente2', 'Articulo3'] 595;
-
-param AnchoDelBalde := 	['Cliente1', 'Articulo1'] 395,
-						['Cliente1', 'Articulo2'] 395,
-						['Cliente2', 'Articulo1'] 395,
-						['Cliente2', 'Articulo2'] 395,
-						['Cliente2', 'Articulo3'] 395;
-
-param AltoDelBalde := 	['Cliente1', 'Articulo1'] 164,
-						['Cliente1', 'Articulo2'] 164,
-						['Cliente2', 'Articulo1'] 164,
-						['Cliente2', 'Articulo2'] 164,
-						['Cliente2', 'Articulo3'] 164;*/
-
-
 end;
 
