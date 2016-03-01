@@ -1,6 +1,10 @@
 #*********************** Modelo ********************
+# Basado en:
 # Bin Packing with Fragmentable Items: Presentation and Approximations
 # Bertrand Lecun, Thierry Mautor, Franck Quessette, Marc-Antoine Weisser
+#
+# Fragmentable Group and Item bin packing with Compatibility Preferences
+# Aderemi Adeyemo, Victor O.Oladokun
 #
 # Definición
 #
@@ -27,48 +31,59 @@
 
 # Conjuntos
 set IdBaldes dimen 2;
-
+ 
 # Parámetros
+param TiposDeBalde := 3;
+param NumerosDeSecciones := 3;
 param BaldesDelArticuloParaElCliente{(i,j) in IdBaldes};
 param TipoDeBalde{(i,j) in IdBaldes};
 param SeccionDelBalde{(i,j) in IdBaldes};
-param BaldeCompatible {(i,j) in IdBaldes, (l,m) in IdBaldes} := if TipoDeBalde[i,j] = TipoDeBalde[l,m] then 1, binary;
-param BaldesDeLaMismaSeccion {(i,j) in IdBaldes, (l,m) in IdBaldes} := if SeccionDelBalde[i,j] = SeccionDelBalde[l,m] then 1, binary;
 
-param NumeroDePaletsPosibles := 100;
+set IdBaldesDeTipo{t in 1..TiposDeBalde} := setof{(i,j) in IdBaldes: TipoDeBalde[i,j] = t}(i,j);
+set IdBaldesDeSeccion{t in 1..NumerosDeSecciones} := setof{(i,j) in IdBaldes: SeccionDelBalde[i,j] = t}(i,j);
+
+param TotalDeIdBaldesDeTipo{(i,j) in IdBaldes, t in 1..TiposDeBalde} := card({(l,m) in IdBaldesDeTipo[t]:i=l and j=m});
+param TotalDeIdBaldesDeSeccion{(i,j) in IdBaldes, t in 1..NumerosDeSecciones} := card({(l,m) in IdBaldesDeSeccion[t]:i=l and j=m});
+
+param NumeroDePaletsPosibles := 20;
 param CapacidadDelPaletEnBaldes := 44;
 
 #variables
-var IdBaldeEnPalet{IdBaldes, 1..NumeroDePaletsPosibles}, binary;
-var BaldesDelIdBaldeEnPalet{(i,j) in IdBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
-var BaldesEnMismoPalet {(i,j) in IdBaldes, (l,m) in IdBaldes, k in 1..NumeroDePaletsPosibles}, binary;
 
-#Restricciones
+var IdBaldeEnPalet{IdBaldes, 1..NumeroDePaletsPosibles}, binary;
+var IdBaldeCompatibleEnPalet{IdBaldes, 1..NumeroDePaletsPosibles}, binary;
+var IdBaldeMismaSeccionEnPalet{IdBaldes, 1..NumeroDePaletsPosibles}, binary;
+var BaldesEnPalet{1..NumeroDePaletsPosibles} >= 0, integer;
+var BaldesDelIdBaldeEnPalet{(i,j) in IdBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
+
+#Restricciones generales del modelo
 subject to MinimoNumeroDePalets: round(sum{(i,j) in IdBaldes} BaldesDelArticuloParaElCliente[i,j]/CapacidadDelPaletEnBaldes) <= sum {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles} IdBaldeEnPalet[i,j,k];
 subject to TotalDeBaldesEnFragmentos {(i,j) in IdBaldes}: sum{k in 1..NumeroDePaletsPosibles} BaldesDelIdBaldeEnPalet[i,j,k] = BaldesDelArticuloParaElCliente[i,j];
 subject to CadaPaletNoDebeExcederse {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnPalet[i, j, k] <= CapacidadDelPaletEnBaldes;
+subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnPalet[i, j, k] = BaldesEnPalet[k];
+
 subject to PaletEsUsadoParaIdBalde {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: BaldesDelIdBaldeEnPalet[i,j,k] / BaldesDelArticuloParaElCliente[i,j] <= IdBaldeEnPalet[i,j,k];
 subject to NumeroDeCortesEnFuncionDeBaldes {(i,j) in IdBaldes}: sum{k in 1..NumeroDePaletsPosibles} BaldesDelIdBaldeEnPalet[i,j,k] >= BaldesDelArticuloParaElCliente[i,j];
 
-# Calculo de BaldesEnMismoPalet (obtenido mediante la creación del AND lógico mediante constraints)
-subject to CondicionPrimeraDelAND {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles, (l,m) in IdBaldes}: IdBaldeEnPalet[i,j,k] >= BaldesEnMismoPalet[i,j,l,m,k];
-subject to CondicionSegundaDelAND {(i,j) in IdBaldes, (l,m) in IdBaldes, k in 1..NumeroDePaletsPosibles}: IdBaldeEnPalet[i,j,k] + IdBaldeEnPalet[l,m,k] - 1 <= BaldesEnMismoPalet[i,j,l,m,k];
+# Los baldes deben ser del mismo tipo
+subject to TodosLosIdBaldesDebenSerCompatibles {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: sum{t in 1..TiposDeBalde} TotalDeIdBaldesDeTipo[i,j,t] *  IdBaldeCompatibleEnPalet[i,j,k]  =  sum{(l,m) in IdBaldes}IdBaldeEnPalet[l,m,k];
+
+# Los baldes deben ser de la misma seccion
+subject to TodosLosIdBaldesDebenSerDeLaMismaSeccion {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: sum{t in 1..NumerosDeSecciones} TotalDeIdBaldesDeSeccion[i,j,t] *  IdBaldeMismaSeccionEnPalet[i,j,k]  =  sum{(l,m) in IdBaldes}IdBaldeEnPalet[l,m,k];
 
 
-
-# Solo pueden ir en un palet baldes compatibles: dos baldes están en el mismo palet si BaldesEnMismoPalet[i,j,k,l,m] = 1;
-subject to BaldesCompatibles {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes, (l,m) in IdBaldes: i<>l or j <> m} BaldeCompatible[i,j,l,m] * BaldesEnMismoPalet[i,j,l,m,k] = sum{(i,j) in IdBaldes} IdBaldeEnPalet[i,j,k];
-# Solo pueden ir en un palet baldes de la misma sección
-subject to SonBaldesDeLaMismaSeccion {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes, (l,m) in IdBaldes: i<>l or j <> m} BaldesDeLaMismaSeccion[i,j,l,m] * BaldesEnMismoPalet[i,j,l,m,k] = sum{(i,j) in IdBaldes} IdBaldeEnPalet[i,j,k];
 # Objetivo
 minimize NumeroDeFragmentos: sum {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles} IdBaldeEnPalet[i,j,k];
-
+display IdBaldesDeTipo;
+display TotalDeIdBaldesDeTipo;
 solve;
 
+#printf '-----------------------------------------------\n';
+#for  {k in 1..NumeroDePaletsPosibles: BaldesEnPalet[k] > 0} printf '%d %d %d\n', k, sum{(i,j) in IdBaldes, t in 1..TiposDeBalde} TotalDeIdBaldesDeTipo[i,j,t] *  IdBaldeCompatibleEnPalet[i,j,k] , sum{(i,j) in IdBaldes}IdBaldeEnPalet[i,j,k];
 printf '-----------------------------------------------\n';
 for {k in 1..NumeroDePaletsPosibles, (i,j) in IdBaldes: BaldesDelIdBaldeEnPalet[i,j,k] > 0} printf 'Palet: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%d\n', k, i, j, BaldesDelIdBaldeEnPalet[i,j,k],TipoDeBalde[i,j], SeccionDelBalde[i,j];
 printf '-----------------------------------------------\n';
-display BaldesEnMismoPalet;
+display BaldesEnPalet;
 
 # Datos
 data;
@@ -85,10 +100,10 @@ param BaldesDelArticuloParaElCliente := ['Cliente1', 'Articulo1'] 140,
 										['Cliente2', 'Articulo3'] 50;
 
 param TipoDeBalde := ['Cliente1', 'Articulo1'] 1,
-					 ['Cliente1', 'Articulo2'] 1,
-					 ['Cliente2', 'Articulo1'] 2,
+					 ['Cliente1', 'Articulo2'] 2,
+					 ['Cliente2', 'Articulo1'] 1,
 					 ['Cliente2', 'Articulo2'] 2,
-					 ['Cliente2', 'Articulo3'] 2;
+					 ['Cliente2', 'Articulo3'] 3;
 					 
 param SeccionDelBalde := ['Cliente1', 'Articulo1'] 2,
 						['Cliente1', 'Articulo2'] 1,
