@@ -2,20 +2,24 @@
 # Basado en A Linear Programming Approach for the Three-Dimensional Bin-Packing Problem 
 # Mhand Hifi*, Imed Kacem**, St´ephane N`egre*, LeiWu
 #
+# Mejorado obteniendo un límite inferior (lower bound) basado en desigualdades válidas (valid inequalities)
 /* ------------------ Declaraciones ---------------*/
-param NumeroDeBaldes > 0, integer;
 param AnchoDelPalet > 0, integer;
 param LargoDelPalet > 0, integer;
 param AltoDelPalet > 0, integer;
+param NumeroDeBaldes > 0, integer;
 
 /*             Conjuntos                                     */
 set Baldes :=1..NumeroDeBaldes;
 set Palets :=1..NumeroDeBaldes;
 
+
 /*             Parámetros de entrada                   */
+
 param AnchoDelBalde {i in Baldes} > 0, integer;
 param LargoDelBalde {i in Baldes} > 0, integer;
 param AltoDelBalde {i in Baldes} > 0, integer;
+param PesoFicticio{i in Baldes} := 5;
 
 /*             Variables de decision                     */
 var NumeroDePalets >= 0, integer;
@@ -45,9 +49,9 @@ subject to CoordenadaZDelBaldeEstaEnElPalet {i in Baldes}: 0 <= CoordenadaZDelBa
 subject to ElPaletAsignadoDebeSerUnoDeLosSeleccionados {i in Baldes}: NumeroDePalets >= PaletDelBalde[i];
 subject to ElNumeroDePaletsDebeNoExcedeElNumeroDeBaldes: NumeroDePalets <= NumeroDeBaldes;
 subject to NumeroMaximoDePalets {i in Baldes}:  PaletDelBalde[i] <= NumeroDePalets;
-# Al menos el numero de palets debe ser el volumen de los baldes
-subject to NumeroMinimoDePalets: sum{i in Baldes} (AnchoDelBalde[i] * AltoDelBalde[i] * LargoDelBalde[i])/ (AnchoDelPalet * AltoDelPalet * LargoDelPalet) <= NumeroDePalets;
 
+#Restricción lower bound de Eastman (relacionada con el problema de agenda de trabajo en máquinas paralelas)
+subject to LowerBoundDeEastmanX: sum {i in Baldes} PesoFicticio[i] * AltoDelBalde[i]* LargoDelBalde[i] * (CoordenadaXDelBalde[i] + AnchoDelBalde[i] + (PaletDelBalde[i]-1) * AnchoDelPalet >= 1/AltoDelPalet*AnchoDelPalet * sum{i in Baldes} PesoFicticio[i] * (AlturaDelBalde[i]* LargoDelPalet * sum{j in i-1} (AnchoDelBalde[j]*AltoDelBalde[j]*LargoDelBalde[j] + sum{k in AltoDelBalde[i]*AnchoDelBalde[i]} k * AnchoDelBalde[i])) + (AltoDelPalet * AnchoDelPalet - 1)/ (2 * AltoDelPalet * AnchoDelPalet) * sum {i in Baldes} PesoFicticio[i] * AnchoDelBalde[i]*AltoDelBalde[i]*LargoDelBalde[i];
 /*                Función objetivo                         */
 minimize NumeroDePaletsAPreparar: NumeroDePalets;
 
@@ -58,8 +62,8 @@ param NumeroDeBaldes := 10;
 param AnchoDelPalet  := 800;
 param LargoDelPalet  := 1200;
 param AltoDelPalet   :=  1950;
-param AnchoDelBalde  := 1 297 2 395 3 297 4 395 5 297 6 395 7 395 8 395 9 297 10 800;
-param LargoDelBalde  := 1 395 2 595 3 395 4 595 5 395 6 595 7 595 8 595 9 395 10 1200;
-param AltoDelBalde   := 1 151 2 112 3 151 4 164 5 151 6 164 7 112 8 112 9 151 10 1950;
+param AnchoDelBalde  := 1 297 2 395 3 297 4 395 5 297 6 395 7 395 8 395 9 297 10 297;
+param LargoDelBalde  := 1 395 2 595 3 395 4 595 5 395 6 595 7 595 8 595 9 395 10 395;
+param AltoDelBalde   := 1 151 2 112 3 151 4 164 5 151 6 164 7 112 8 112 9 151 10 151;
 
 end;
