@@ -31,11 +31,12 @@
 #
 # Parametros independientes
 #
-param TiposDeBalde := 3;
-param NumeroDeSecciones := 3;
 
-param NumeroDePaletsPosibles := 10;
-param CapasDeBaldes := 11;
+param TiposDeBalde := 2;
+param NumeroDeSecciones := 9;
+
+param NumeroDePaletsPosibles := 160;
+param CapasDeBaldes := 8;
 param AlturaDelPalet := 1950;
 param BaldesPorCapa := 4;
 
@@ -48,11 +49,18 @@ set IdBaldes dimen 2;
 # Parámetros Dependientes del conjunto
 param BaldesDelArticuloParaElCliente{(i,j) in IdBaldes};
 param TipoDeBalde{(i,j) in IdBaldes};
-param SeccionDelBalde{(i,j) in IdBaldes};
 param LargoDelBalde{(i,j) in IdBaldes};
 param AnchoDelBalde{(i,j) in IdBaldes};
 param AltoDelBalde{(i,j) in IdBaldes};
 
+
+#Lectura de datos
+
+table tin IN 'CSV' 'C:\gusek_0-2-19\gusek\Ped_Export_OPTIMIZADOR_4.csv' :
+IdBaldes <- [NombreDeGrupo, ArticuloDelBalde], BaldesDelArticuloParaElCliente ~ CantidadDeBaldes, TipoDeBalde ~ TipoDeBalde;
+
+param SeccionDelBalde{(i,j) in IdBaldes} := substr(i, 2,1);
+display SeccionDelBalde;
 set IdBaldesDeTipo{t in 1..TiposDeBalde} := setof{(i,j) in IdBaldes: TipoDeBalde[i,j] = t}(i,j);
 set IdBaldesDeSeccion{t in 1..NumeroDeSecciones} := setof{(i,j) in IdBaldes: SeccionDelBalde[i,j] = t}(i,j);
 
@@ -94,19 +102,21 @@ display TotalDeIdBaldesDeTipo;
 solve;
 
 printf '-----------------------------------------------\n';
-for {k in 1..NumeroDePaletsPosibles, c in 1..BaldesPorCapa, (i,j) in IdBaldes: BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%d\n', k, c, i, j, BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j], SeccionDelBalde[i,j];
+for {k in 1..NumeroDePaletsPosibles, c in 1..BaldesPorCapa, (i,j) in IdBaldes: BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:\n', k, c, i, j, BaldesDelIdBaldeEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j];
+#, SeccionDelBalde[i,j];
 printf '-----------------------------------------------\n';
-display BaldesEnColumnaDelPalet;
+#display BaldesEnColumnaDelPalet;
 
 # Datos
 data;
-set IdBaldes := ('Cliente1', 'Articulo1'),
+
+/*set IdBaldes := ('Cliente1', 'Articulo1'),
 				('Cliente1', 'Articulo2'),
 				('Cliente2', 'Articulo1'),
 				('Cliente2', 'Articulo2'),
 				('Cliente2', 'Articulo3');
 
-param BaldesDelArticuloParaElCliente := ['Cliente1', 'Articulo1'] 88,
+param BaldesDelArticuloParaElCliente := ['Cliente1', 'Articulo1'] 100,
 										['Cliente1', 'Articulo2'] 50,
 										['Cliente2', 'Articulo1'] 44,
 										['Cliente2', 'Articulo2'] 11,
@@ -116,7 +126,7 @@ param TipoDeBalde := ['Cliente1', 'Articulo1'] 1,
 					 ['Cliente1', 'Articulo2'] 2,
 					 ['Cliente2', 'Articulo1'] 1,
 					 ['Cliente2', 'Articulo2'] 2,
-					 ['Cliente2', 'Articulo3'] 3;
+					 ['Cliente2', 'Articulo3'] 2; 
 					 
 param SeccionDelBalde := ['Cliente1', 'Articulo1'] 2,
 						['Cliente1', 'Articulo2'] 1,
@@ -140,7 +150,7 @@ param AltoDelBalde := 	['Cliente1', 'Articulo1'] 164,
 						['Cliente1', 'Articulo2'] 164,
 						['Cliente2', 'Articulo1'] 164,
 						['Cliente2', 'Articulo2'] 164,
-						['Cliente2', 'Articulo3'] 164;
+						['Cliente2', 'Articulo3'] 164;*/
 
 
 end;
