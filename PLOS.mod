@@ -11,6 +11,7 @@ param AltoDelPalet > 0, integer;
 
 /*             Conjuntos                                     */
 set Baldes :=1..NumeroDeBaldes;
+set Palets :=1..4;
 
 /*             Parámetros de entrada                   */
 param ArticuloDelBalde {i in Baldes}, symbolic;
@@ -29,6 +30,8 @@ param BaldeDelMismoArticulo {i in Baldes, j in Baldes} := if ArticuloDelBalde[i]
 /*             Variables de decision                     */
 var NumeroDePalets >= 0, integer;
 var PaletDelBalde {i in Baldes} >= 1, integer;
+var SeUsaPalet {i in Palets}, binary;
+var BaldeEnPalet {i in Baldes, j in Palets}, binary;
 var BaldeALaIzquierdaDelBalde {i in Baldes, j in Baldes}, binary;
 var BaldeAbajoDelBalde {i in Baldes, j in Baldes}, binary;
 var BaldeDetrasDelBalde {i in Baldes, j in Baldes}, binary;
@@ -55,6 +58,11 @@ subject to CoordenadaYDelBaldeEstaEnElPalet {i in Baldes}: 0<= CoordenadaYDelBal
 subject to CoordenadaZDelBaldeEstaEnElPalet {i in Baldes}: 0<= CoordenadaZDelBalde[i] <= AltoDelPalet - AltoDelBalde[i];
 subject to ElNumeroDePaletsDebeNoExcedeElLimiteSuperior: NumeroDePalets <= LimiteSuperiorDePalets;
 subject to NumeroMaximoDePalets {i in Baldes}:  PaletDelBalde[i] <= NumeroDePalets;
+subject to IdentificaPaletDelBalde {i in Baldes, j in Palets: i = j}: BaldeEnPalet[i, j] = 1; 
+# Restricciones del bin packing problem
+#subject to ElVolumenDeLPaletNoSeExcede {j in Palets}: sum{i in Baldes} ((AnchoDelBalde[i] * AltoDelBalde[i] * LargoDelBalde[i]) *  BaldeEnPalet[i,j]) <= SeUsaPalet[j] * (AnchoDelPalet * AltoDelPalet * LargoDelPalet);
+#subject to CadaBaldeDebeEstarEnUnPalet {i in Baldes}: sum{j in Palets} BaldeEnPalet[i,j] = 1;
+#subject to NumeroDePaletsDebeCoincidir: sum{j in Palets} SeUsaPalet[j] = NumeroDePalets;
 
 # Al menos el numero de palets debe ser el volumen de los baldes
 subject to NumeroMiniDePalesPorVolumen {i in Baldes}: LimiteInferiorDePalets <= PaletDelBalde[i];
@@ -73,7 +81,7 @@ minimize NumeroDePaletsAPreparar: NumeroDePalets;
 #
 data;
 param ArticuloDelBalde:= 1 "Articulo1" 2 "Articulo2" 3 "Articulo3" 4 "Articulo3";
-param SeccionDelBalde:= 1 "Seccion1" 2 "Seccion2" 3 "Seccion2" 4 "Seccion4";
+param SeccionDelBalde:= 1 "Seccion1" 2 "Seccion1" 3 "Seccion1" 4 "Seccion1";
 param TipoDeBalde := 1 "Tipo1" 2 "Tipo1" 3 "Tipo1" 4 "Tipo4";
 param NumeroDeBaldes := 4;
 param AnchoDelPalet  := 800;
