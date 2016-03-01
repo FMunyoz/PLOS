@@ -11,10 +11,10 @@
 # Fragmentable Bin Packing Problem (FIBP): Es un Bin Packing Problem en el que cada item IdBaldes puede ser dividido en items más pequeños.
 # Para nuestro modelo el item es el número de baldes para un Cliente-Articulo. Con esto conseguimos que el máimo número de baldes del mismo ClienteArticulo vaya en el mismo palet.
 #
-# Objetivo: Determinar el número mínimo de Palets de tamaño CapacidadDelPaletEnBaldes en que se pueden fragmentar los BaldesDelArticuloParaElCliente minimizando  el número de fragmentos de items 
+# Objetivo: Determinar el número mínimo de Palets de tamaño  en que se pueden fragmentar los BaldesDelArticuloParaElCliente minimizando  el número de fragmentos de items 
 #
 # Tenemos un número de items card(IdBaldes) donde cada IdBaldes tiene un número de baldes BaldesDelArticuloParaElCliente(IdBaldes)
-# Tenemos un número de palets NumeroDePaletsPosibles, cada uno de ellos con una capacidad CapacidadDelPaletEnBaldes;
+# Tenemos un número de palets NumeroDePaletsPosibles, cada uno de ellos con una capacidad CapasDeBaldes;
 # 
 # Mínimo número de palets:  aquellos que, por la capacidad, permiten poner el total de baldes.
 #
@@ -31,13 +31,16 @@
 
 # Conjuntos
 set IdBaldes dimen 2;
- 
+
 # Parámetros
 param TiposDeBalde := 3;
 param NumerosDeSecciones := 3;
 param BaldesDelArticuloParaElCliente{(i,j) in IdBaldes};
 param TipoDeBalde{(i,j) in IdBaldes};
 param SeccionDelBalde{(i,j) in IdBaldes};
+param LargoDelBalde{(i,j) in IdBaldes};
+param AnchoDelBalde{(i,j) in IdBaldes};
+param AltoDelBalde{(i,j) in IdBaldes};
 
 set IdBaldesDeTipo{t in 1..TiposDeBalde} := setof{(i,j) in IdBaldes: TipoDeBalde[i,j] = t}(i,j);
 set IdBaldesDeSeccion{t in 1..NumerosDeSecciones} := setof{(i,j) in IdBaldes: SeccionDelBalde[i,j] = t}(i,j);
@@ -45,8 +48,11 @@ set IdBaldesDeSeccion{t in 1..NumerosDeSecciones} := setof{(i,j) in IdBaldes: Se
 param TotalDeIdBaldesDeTipo{(i,j) in IdBaldes, t in 1..TiposDeBalde} := card({(l,m) in IdBaldesDeTipo[t]:i=l and j=m});
 param TotalDeIdBaldesDeSeccion{(i,j) in IdBaldes, t in 1..NumerosDeSecciones} := card({(l,m) in IdBaldesDeSeccion[t]:i=l and j=m});
 
-param NumeroDePaletsPosibles := 20;
-param CapacidadDelPaletEnBaldes := 44;
+param NumeroDePaletsPosibles := 360;
+param CapasDeBaldes := 11;
+param AlturaDelPalet := 1950;
+param BaldesPorCapa := 4;
+param CapacidadDelPaletEnBaldes := CapasDeBaldes * BaldesPorCapa;
 
 #variables
 
@@ -57,9 +63,9 @@ var BaldesEnPalet{1..NumeroDePaletsPosibles} >= 0, integer;
 var BaldesDelIdBaldeEnPalet{(i,j) in IdBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
 
 #Restricciones generales del modelo
-subject to MinimoNumeroDePalets: round(sum{(i,j) in IdBaldes} BaldesDelArticuloParaElCliente[i,j]/CapacidadDelPaletEnBaldes) <= sum {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles} IdBaldeEnPalet[i,j,k];
+subject to MinimoNumeroDePalets: round(sum{(i,j) in IdBaldes} BaldesDelArticuloParaElCliente[i,j]/(CapasDeBaldes*BaldesPorCapa)) <= sum {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles} IdBaldeEnPalet[i,j,k];
 subject to TotalDeBaldesEnFragmentos {(i,j) in IdBaldes}: sum{k in 1..NumeroDePaletsPosibles} BaldesDelIdBaldeEnPalet[i,j,k] = BaldesDelArticuloParaElCliente[i,j];
-subject to CadaPaletNoDebeExcederse {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnPalet[i, j, k] <= CapacidadDelPaletEnBaldes;
+subject to CadaPaletNoDebeExcederse {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnPalet[i, j, k] <= CapasDeBaldes*BaldesPorCapa;
 subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{(i,j) in IdBaldes}BaldesDelIdBaldeEnPalet[i, j, k] = BaldesEnPalet[k];
 
 subject to PaletEsUsadoParaIdBalde {(i,j) in IdBaldes, k in 1..NumeroDePaletsPosibles}: BaldesDelIdBaldeEnPalet[i,j,k] / BaldesDelArticuloParaElCliente[i,j] <= IdBaldeEnPalet[i,j,k];
@@ -110,6 +116,25 @@ param SeccionDelBalde := ['Cliente1', 'Articulo1'] 2,
 						['Cliente2', 'Articulo1'] 2,
 						['Cliente2', 'Articulo2'] 1,
 						['Cliente2', 'Articulo3'] 2;
+						
+param LargoDelBalde := 	['Cliente1', 'Articulo1'] 595,
+						['Cliente1', 'Articulo2'] 595,
+						['Cliente2', 'Articulo1'] 595,
+						['Cliente2', 'Articulo2'] 595,
+						['Cliente2', 'Articulo3'] 595;
+
+param AnchoDelBalde := 	['Cliente1', 'Articulo1'] 395,
+						['Cliente1', 'Articulo2'] 395,
+						['Cliente2', 'Articulo1'] 395,
+						['Cliente2', 'Articulo2'] 395,
+						['Cliente2', 'Articulo3'] 395;
+
+param AltoDelBalde := 	['Cliente1', 'Articulo1'] 164,
+						['Cliente1', 'Articulo2'] 164,
+						['Cliente2', 'Articulo1'] 164,
+						['Cliente2', 'Articulo2'] 164,
+						['Cliente2', 'Articulo3'] 164;
+
 
 end;
 
