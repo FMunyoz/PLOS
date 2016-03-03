@@ -67,13 +67,14 @@ set Secciones:= setof{(i,j) in Items} substr(i, 2,1);
 set ItemsDeTipo{t in TiposDeBalde} := setof{(i,j) in Items: TipoDeBalde[i,j] = t}(i,j);
 set ItemsDeSeccion{s in Secciones} := setof{(i,j) in Items: substr(i,2,1) = s}(i,j);
 
-param NumeroDePaletsPosibles :=card(Items);
+param NumeroDePaletsPosibles :=7;
 
 param TotalDeItemsDeTipo{(i,j) in Items, t in TiposDeBalde} := card({(l,m) in ItemsDeTipo[t]:i=l and j=m});
 param TotalDeItemsDeSeccion{(i,j) in Items, s in Secciones} := card({(l,m) in ItemsDeSeccion[s]:i=l and j=m});
 display TiposDeBalde;
 
 display Items;
+display ItemsDeTipo;
 display TiposDeBalde;
 
 #variables
@@ -83,6 +84,7 @@ var ItemEnPalet{Items, 1..NumeroDePaletsPosibles}, binary;
 var ItemDelTipoEnPalet{Items, TiposDeBalde, 1..NumeroDePaletsPosibles}, binary;
 var BaldesEnColumnaDelPalet{1..CapasDeBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
 var BaldesDelItemEnColumnaDelPalet{c in 1..BaldesPorCapa, (i,j) in Items, 1..NumeroDePaletsPosibles} >= 0, integer;
+var ItemsEnPalet{k in 1..NumeroDePaletsPosibles}, >= 0, integer;
 
 #Restricciones generales del modelo
 
@@ -90,30 +92,45 @@ var BaldesDelItemEnColumnaDelPalet{c in 1..BaldesPorCapa, (i,j) in Items, 1..Num
 subject to II_TotalDeBaldesEnFragmentos {(i,j) in Items}: sum{c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles} BaldesDelItemEnColumnaDelPalet[c,i,j,k] = BaldesDelItem[i,j];
 
 # Cuando el item (i,j) se encuentra en alguna columna del palet k entonces el item está en el palet.
-subject to II_ActivaVariable {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa}BaldesDelItemEnColumnaDelPalet[c,i,j,k]/BaldesDelItem[i,j] <= ItemEnPalet[i,j,k];
+subject to IV_ElItemEstaEnElPalet {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa}(BaldesDelItemEnColumnaDelPalet[c,i,j,k])/BaldesDelItem[i,j] <= ItemEnPalet[i,j,k];
 
-# subject to IV_TodoItemEnAlgunPalet{(i,j) in Items}: sum{k in 1..NumeroDePaletsPosibles} ItemEnPalet[i,j,k] >= 1;
-
+# Todo item debe estar en algún palet
+subject to _4_TodoItemEnAlgunPalet{(i,j) in Items}: sum{k in 1..NumeroDePaletsPosibles} ItemEnPalet[i,j,k] >= 1;
 
 #Restricciones de capacidad del palet. 
 
 #Cada palet no debe excederse
 subject to III_CadaPaletNoDebeExcederse {k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa, (i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] <= CapasDeBaldes*BaldesPorCapa;
 #Cada columna no debe excederse
-subject to IIIa_CadaColumnaDelPaletNoDebeExcederse {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}(BaldesDelItemEnColumnaDelPalet[c, i, j, k] * AltoDelBalde[i,j]) <= AltoDelPalet;
-#subject to CalculoAnchoDeLaColumna {c in 1..BaldesPorCapa, (i,j) in Items, k in 1..NumeroDePaletsPosibles}:BaldesEnColumnaDelPalet[c, k] - (BaldesEnColumnaDelPalet[c, k] - 1) * AnchoDelBalde[i,j]*LargoDelBalde[i,j] <= AnchoDelPalet * LargoDelPalet;
+#subject to IIIa_CadaColumnaDelPaletNoDebeExcederse {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}(BaldesDelItemEnColumnaDelPalet[c, i, j, k] * AltoDelBalde[i,j]) <= AltoDelPalet;
 
 
 #Restricciones de coherencia del palet
-subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa, (i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = sum{c in 1..CapasDeBaldes}BaldesEnColumnaDelPalet[c, k];
-subject to LaSumaDeBaldesEnColumnaEsCoherente {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = BaldesEnColumnaDelPalet[c, k];
+#subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa, (i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = sum{c in 1..CapasDeBaldes}BaldesEnColumnaDelPalet[c, k];
+#subject to LaSumaDeBaldesEnColumnaEsCoherente {c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = BaldesEnColumnaDelPalet[c, k];
 
-subject to PaletEsUsadoParaItem {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa}BaldesDelItemEnColumnaDelPalet[c,i,j,k] / BaldesDelItem[i,j] <= ItemEnPalet[i,j,k];
-subject to NumeroDeCortesEnFuncionDeBaldes {(i,j) in Items}: sum{c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles} BaldesDelItemEnColumnaDelPalet[c,i,j,k] >= BaldesDelItem[i,j];
+#subject to PaletEsUsadoParaItem {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..BaldesPorCapa}BaldesDelItemEnColumnaDelPalet[c,i,j,k] / BaldesDelItem[i,j] <= ItemEnPalet[i,j,k];
+#subject to NumeroDeCortesEnFuncionDeBaldes {(i,j) in Items}: sum{c in 1..BaldesPorCapa, k in 1..NumeroDePaletsPosibles} BaldesDelItemEnColumnaDelPalet[c,i,j,k] >= BaldesDelItem[i,j];
 
 # Los baldes deben ser del mismo tipo
-#subject to ActivaVariablePorTipo{tb in TiposDeBalde, (i,j) in ItemsDeTipo[tb], k in 1..NumeroDePaletsPosibles}: ItemEnPalet[i,j,k] = ItemDelTipoEnPalet[i,j,tb,k];
-#subject to TodosLosItemsDebenSerCompatibles{tb in TiposDeBalde,k in 1..NumeroDePaletsPosibles}: sum{(i,j) in ItemsDeTipo[tb]} ItemDelTipoEnPalet[i,j,tb,k] = sum{(l,m) in Items}ItemEnPalet[l,m,k];
+subject to ActivaVariablePorTipo{tb in TiposDeBalde, (i,j) in ItemsDeTipo[tb], k in 1..NumeroDePaletsPosibles}: ItemEnPalet[i,j,k] <= ItemDelTipoEnPalet[i,j,tb,k];
+
+# Para cualquier item y cualquier palet, la suma para todos los tipos de ... es igual al total de Items en el palet.
+subject to TodosLosItemsDebenSerCompatibles_1: sum{(i,j) in ItemsDeTipo[1]} ItemDelTipoEnPalet[i,j,1,1] = sum{(i,j) in Items}ItemEnPalet[i,j,1];
+subject to TodosLosItemsDebenSerCompatibles_2: sum{(i,j) in ItemsDeTipo[1]} ItemDelTipoEnPalet[i,j,1,2] = sum{(i,j) in Items}ItemEnPalet[i,j,2];
+subject to TodosLosItemsDebenSerCompatibles_3: sum{(i,j) in ItemsDeTipo[1]} ItemDelTipoEnPalet[i,j,1,3] = sum{(i,j) in Items}ItemEnPalet[i,j,3];
+subject to TodosLosItemsDebenSerCompatibles_4: sum{(i,j) in ItemsDeTipo[1]} ItemDelTipoEnPalet[i,j,1,4] = sum{(i,j) in Items}ItemEnPalet[i,j,4];
+subject to TodosLosItemsDebenSerCompatibles_5: sum{(i,j) in ItemsDeTipo[1]} ItemDelTipoEnPalet[i,j,1,5] = sum{(i,j) in Items}ItemEnPalet[i,j,5];
+subject to TodosLosItemsDebenSerCompatibles_6: sum{(i,j) in ItemsDeTipo[1]} ItemDelTipoEnPalet[i,j,1,6] = sum{(i,j) in Items}ItemEnPalet[i,j,6];
+subject to TodosLosItemsDebenSerCompatibles_7: sum{(i,j) in ItemsDeTipo[1]} ItemDelTipoEnPalet[i,j,1,7] = sum{(i,j) in Items}ItemEnPalet[i,j,7];
+subject to TodosLosItemsDebenSerCompatibles_1a: sum{(i,j) in ItemsDeTipo[2]} ItemDelTipoEnPalet[i,j,2,1] = sum{(i,j) in Items}ItemEnPalet[i,j,1];
+subject to TodosLosItemsDebenSerCompatibles_2a: sum{(i,j) in ItemsDeTipo[2]} ItemDelTipoEnPalet[i,j,2,2] = sum{(i,j) in Items}ItemEnPalet[i,j,2];
+subject to TodosLosItemsDebenSerCompatibles_3a: sum{(i,j) in ItemsDeTipo[2]} ItemDelTipoEnPalet[i,j,2,3] = sum{(i,j) in Items}ItemEnPalet[i,j,3];
+subject to TodosLosItemsDebenSerCompatibles_4a: sum{(i,j) in ItemsDeTipo[2]} ItemDelTipoEnPalet[i,j,2,4] = sum{(i,j) in Items}ItemEnPalet[i,j,4];
+subject to TodosLosItemsDebenSerCompatibles_5a: sum{(i,j) in ItemsDeTipo[2]} ItemDelTipoEnPalet[i,j,2,5] = sum{(i,j) in Items}ItemEnPalet[i,j,5];
+subject to TodosLosItemsDebenSerCompatibles_6a: sum{(i,j) in ItemsDeTipo[2]} ItemDelTipoEnPalet[i,j,2,6] = sum{(i,j) in Items}ItemEnPalet[i,j,6];
+subject to TodosLosItemsDebenSerCompatibles_7a: sum{(i,j) in ItemsDeTipo[2]} ItemDelTipoEnPalet[i,j,2,7] = sum{(i,j) in Items}ItemEnPalet[i,j,7];
+
 
 # Los baldes deben ser de la misma seccion
 #subject to TodosLosItemsDebenSerDeLaMismaSeccion {k in 1..NumeroDePaletsPosibles, s in Secciones}: sum{(i,j) in ItemsDeSeccion[s]} ItemEnPalet[i,j,k]  =  sum{(l,m) in Items}ItemEnPalet[l,m,k];
@@ -128,10 +145,9 @@ minimize NumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k];
 
 
 solve;
-display BaldesEnColumnaDelPalet;
+display {(i,j) in Items, k in 1..NumeroDePaletsPosibles: ItemEnPalet[i,j,k]>0}ItemEnPalet[i,j,k];
+display {c in 1..BaldesPorCapa, (i,j) in Items, k in 1..NumeroDePaletsPosibles:BaldesDelItemEnColumnaDelPalet[c,i,j,k]>0}BaldesDelItemEnColumnaDelPalet[c,i,j,k];
 display {(i,j) in Items, k in 1..NumeroDePaletsPosibles:ItemEnPalet[i,j,k]>0 }ItemEnPalet[i,j,k];
-for {k in 1..NumeroDePaletsPosibles, tb in TiposDeBalde:sum{(i,j) in ItemsDeTipo[tb]} ItemEnPalet[i,j,k] >0} printf  'Palet: %d, Tipo:%s, %d %d\n', k,tb,sum{(i,j) in ItemsDeTipo[tb]} ItemEnPalet[i,j,k] , sum{(l,m) in Items}ItemEnPalet[l,m,k];
-display {k in 1..NumeroDePaletsPosibles: PaletUsado[k]>0} PaletUsado[k];
 table Salida {k in 1..NumeroDePaletsPosibles, c in 1..BaldesPorCapa, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\gusek_0-2-19\gusek\Modelos\TRMOSAICO_Carrefour.csv":
 k, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k], c;
 printf '-----------------------------------------------\n';
