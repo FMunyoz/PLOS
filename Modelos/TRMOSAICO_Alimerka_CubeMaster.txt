@@ -1,0 +1,11 @@
+Load Summary																									
+Alimerka																									
+[None]																									
+Container	Loaded	Vol. Effi.	Area Effi.	Cargo	Loaded	Container Type	Cargo/Layer	Layer/Pallet	Alias1	Alias2	Property1	Property2	Property3	Property4	Property5	Property6	Property7	Property8	Property9	Property10					
+PALET-001(731-1984517-AL)	32	89,53333333	97,92708333	20933-JAMON 3D AL VACIO	32	Alimerka	4	8	430082																
+PALET-002(731-1984517-AL)	32	89,53333333	97,92708333	20933-JAMON 3D AL VACIO	32	Alimerka	4	8	430082																
+PALET-003(731-1984517-AL)	32	89,53333333	97,92708333	20936-SOLOMILLO AL VACIO	32	Alimerka	4	8	430117																
+PALET-004(731-1984517-AL)	32	89,53333333	97,92708333	20936-SOLOMILLO AL VACIO	32	Alimerka	4	8	430117																
+PALET-005(731-1984517-AL)	32	89,53333333	89,53333333	20933-JAMON 3D AL VACIO	16	Alimerka	0	0	430082																
+PALET-005(731-1984517-AL)	32	89,53333333	89,53333333	20942-PALETA 3D VACIO	16	Alimerka	0	0	430135																
+																									
