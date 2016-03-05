@@ -59,7 +59,7 @@ param AltoDelBalde{(i,j) in Items};
 
 #Lectura de datos
 
-table tin IN 'CSV' 'C:\gusek_0-2-19\gusek\Modelos\PED_Export_OPTIMIZADOR_Carrefour.csv' :
+table tin IN 'CSV' 'C:\gusek_0-2-19\gusek\Modelos\PED_Export_OPTIMIZADOR_DiaG4.csv' :
 Items <- [NombreDeGrupo, ArticuloDelBalde], BaldesDelItem ~ CantidadDeBaldes, TipoDeBalde ~ TipoDeBalde, AltoDelBalde, AnchoDelBalde, LargoDelBalde;
 
 # Conjuntos a partir de los datos leidos
@@ -69,7 +69,8 @@ set Secciones:= setof{(i,j) in Items} substr(i, 2,1);
 set ItemsDeTipo{t in TiposDeBalde} := setof{(i,j) in Items: TipoDeBalde[i,j] = t}(i,j);
 set ItemsDeSeccion{s in Secciones} := setof{(i,j) in Items: substr(i,2,1) = s}(i,j);
 
-param NumeroDePaletsPosibles :=card(Items);
+param NumeroDePaletsPosibles :=100;
+param NumeroDeSecciones := card(Secciones);
 
 param TotalDeItemsDeTipo{(i,j) in Items, t in TiposDeBalde} := card({(l,m) in ItemsDeTipo[t]:i=l and j=m});
 param TotalDeItemsDeSeccion{(i,j) in Items, s in Secciones} := card({(l,m) in ItemsDeSeccion[s]:i=l and j=m});
@@ -128,15 +129,20 @@ subject to TodosLosItemsDebenSerDeLaMismaSeccion {k in 1..NumeroDePaletsPosibles
 # Si el algún balde está en el palet entonces el palet es usado
 subject to PaletUsadoEnLaSolucion {k in 1..NumeroDePaletsPosibles, (i,j) in Items}: PaletUsado[k]>=ItemEnPalet[i,j,k];
 
+# El minimo de palets debe ser al menos la capacidad de baldes en palets
+subject to MinimoNumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= NumeroDeSecciones;
+subject to MinimoNuemroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= sum{(i,j) in Items} (AnchoDelBalde[i,j]*AltoDelBalde[i,j]*LargoDelBalde[i,j])/(AnchoDelPalet*AltoDelPalet*LargoDelPalet);
+
 # Objetivo
 minimize NumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k];
+#minimize NumeroDeFragmentos: sum {(i,j) in Items, k in 1..NumeroDePaletsPosibles} ItemEnPalet[i,j,k];
 
 
 solve;
 display {(i,j) in Items, k in 1..NumeroDePaletsPosibles: ItemEnPalet[i,j,k]>0}ItemEnPalet[i,j,k];
 #display {c in 1..ColumnasPorPalet, (i,j) in Items, k in 1..NumeroDePaletsPosibles:BaldesDelItemEnColumnaDelPalet[c,i,j,k]>0}BaldesDelItemEnColumnaDelPalet[c,i,j,k];
 #display {(i,j) in Items, k in 1..NumeroDePaletsPosibles:ItemEnPalet[i,j,k]>0 }ItemEnPalet[i,j,k];
-table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\gusek_0-2-19\gusek\Modelos\TRMOSAICO_Carrefour.csv":
+table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\gusek_0-2-19\gusek\Modelos\TRMOSAICO_DiaG4.csv":
 k, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k], c;
 printf '-----------------------------------------------\n';
 for {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%s\n', k, c, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j], substr(i,2,1);
