@@ -14,7 +14,7 @@
 # Objetivo: Determinar el número mínimo de Palets en que se pueden fragmentar los BaldesDelItem minimizando  el número de fragmentos de items 
 #
 # Tenemos un número de items card(Items) donde cada Item tiene un número de baldes BaldesDelItem(Items)
-# Tenemos un número de palets NumeroDePaletsPosibles, cada uno de ellos con una capacidad CapacidadDelPaletEnBaldes
+# Tenemos un número de palets NumeroDePaletsPosibles, cada uno de ellos con una capacidad de baldes que depende del tipo de Balde.
 #
 # Ademas, considermos que el tamaño total de los items es inferior a la capacidad total de los palets
 # 
@@ -35,15 +35,13 @@
 # -------------------------------------------------------------
 # Parametros independientes
 # 
-param CapasDeBaldes := 8;
 param AltoDelPalet := 1950;
 param AnchoDelPalet := 800;
 param LargoDelPalet := 1200;
-param ColumnasPorPalet := 4;
+param ColumnasPorPalet := 8;
 
 param BigM :=2;
-
-param CapacidadDelPaletEnBaldes := CapasDeBaldes * ColumnasPorPalet;
+param BigM_DeColumna :=1000;
 
 # Conjuntos
 
@@ -59,7 +57,7 @@ param AltoDelBalde{(i,j) in Items};
 
 #Lectura de datos
 
-table tin IN 'CSV' 'C:\gusek_0-2-19\gusek\Modelos\PED_Export_OPTIMIZADOR_DiaG4.csv' :
+table tin IN 'CSV' 'C:\Users\federico.munyoz\WS\PLOS\Modelos\PED_Export_OPTIMIZADOR_Alimerka.csv' :
 Items <- [NombreDeGrupo, ArticuloDelBalde], BaldesDelItem ~ CantidadDeBaldes, TipoDeBalde ~ TipoDeBalde, AltoDelBalde, AnchoDelBalde, LargoDelBalde;
 
 # Conjuntos a partir de los datos leidos
@@ -86,7 +84,7 @@ var PaletUsado{1..NumeroDePaletsPosibles}, binary;
 var ItemEnPalet{Items, 1..NumeroDePaletsPosibles}, binary;
 var TipoEstaEnPalet{TiposDeBalde, 1..NumeroDePaletsPosibles}, binary;
 var SeccionEstaEnPalet{Secciones, 1..NumeroDePaletsPosibles}, binary;
-var BaldesEnColumnaDelPalet{1..CapasDeBaldes, 1..NumeroDePaletsPosibles} >= 0, integer;
+var BaldesEnColumnaDelPalet{1..ColumnasPorPalet, 1..NumeroDePaletsPosibles} >= 0, integer;
 var BaldesDelItemEnColumnaDelPalet{c in 1..ColumnasPorPalet, (i,j) in Items, 1..NumeroDePaletsPosibles} >= 0, integer;
 
 #Restricciones generales del modelo
@@ -102,14 +100,13 @@ subject to _4_TodoItemEnAlgunPalet{(i,j) in Items}: sum{k in 1..NumeroDePaletsPo
 
 #Restricciones de capacidad del palet. 
 
-#Cada palet no debe excederse
-subject to III_CadaPaletNoDebeExcederse {k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet, (i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] <= CapasDeBaldes*ColumnasPorPalet;
 #Cada columna no debe excederse
 subject to IIIa_CadaColumnaDelPaletNoDebeExcederse {c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}(BaldesDelItemEnColumnaDelPalet[c, i, j, k] * AltoDelBalde[i,j]) <= AltoDelPalet;
-
+#Las columnas son maximo 4 si los baldes si el tipo de balde es 1
+subject to IIIb_LasColumnasSon4EnBaldesTipo1 {k in 1..NumeroDePaletsPosibles}: sum{c in 5..ColumnasPorPalet} BaldesEnColumnaDelPalet[c,k] - BigM_DeColumna * (1 - TipoEstaEnPalet[1, k]) <= 0;
 
 #Restricciones de coherencia del palet
-subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet, (i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = sum{c in 1..CapasDeBaldes}BaldesEnColumnaDelPalet[c, k];
+subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet, (i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = sum{c in 1..ColumnasPorPalet}BaldesEnColumnaDelPalet[c, k];
 subject to LaSumaDeBaldesEnColumnaEsCoherente {c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = BaldesEnColumnaDelPalet[c, k];
 
 subject to PaletEsUsadoParaItem {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet}BaldesDelItemEnColumnaDelPalet[c,i,j,k] / BaldesDelItem[i,j] <= ItemEnPalet[i,j,k];
@@ -129,9 +126,9 @@ subject to TodosLosItemsDebenSerDeLaMismaSeccion {k in 1..NumeroDePaletsPosibles
 # Si el algún balde está en el palet entonces el palet es usado
 subject to PaletUsadoEnLaSolucion {k in 1..NumeroDePaletsPosibles, (i,j) in Items}: PaletUsado[k]>=ItemEnPalet[i,j,k];
 
-# El minimo de palets debe ser al menos la capacidad de baldes en palets
+# El minimo de palets debe ser al menos la capacidad de baldes en palets (lower bound)
 subject to MinimoNumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= NumeroDeSecciones;
-subject to MinimoNuemroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= sum{(i,j) in Items} (AnchoDelBalde[i,j]*AltoDelBalde[i,j]*LargoDelBalde[i,j])/(AnchoDelPalet*AltoDelPalet*LargoDelPalet);
+subject to MinimoNumeroDePalets_2: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= sum{(i,j) in Items} (AnchoDelBalde[i,j]*AltoDelBalde[i,j]*LargoDelBalde[i,j])/(AnchoDelPalet*AltoDelPalet*LargoDelPalet);
 
 # Objetivo
 minimize NumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k];
@@ -142,7 +139,7 @@ solve;
 display {(i,j) in Items, k in 1..NumeroDePaletsPosibles: ItemEnPalet[i,j,k]>0}ItemEnPalet[i,j,k];
 #display {c in 1..ColumnasPorPalet, (i,j) in Items, k in 1..NumeroDePaletsPosibles:BaldesDelItemEnColumnaDelPalet[c,i,j,k]>0}BaldesDelItemEnColumnaDelPalet[c,i,j,k];
 #display {(i,j) in Items, k in 1..NumeroDePaletsPosibles:ItemEnPalet[i,j,k]>0 }ItemEnPalet[i,j,k];
-table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\gusek_0-2-19\gusek\Modelos\TRMOSAICO_DiaG4.csv":
+table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\Users\federico.munyoz\WS\PLOS\Modelos\TRMOSAICO_Alimerka_PLOS.csv":
 k, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k], c;
 printf '-----------------------------------------------\n';
 for {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%s\n', k, c, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j], substr(i,2,1);
