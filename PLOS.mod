@@ -35,7 +35,7 @@
 # -------------------------------------------------------------
 # Parametros independientes
 # 
-param AltoDelPalet := 1600;
+param AltoDelPalet := 1900;
 param AnchoDelPalet := 800;
 param LargoDelPalet := 1200;
 param ColumnasPorPalet := 8;
@@ -58,12 +58,13 @@ param AltoDelBalde{(i,j) in Items};
 
 #Lectura de datos
 
-table tin IN 'CSV' 'C:\Users\federico.munyoz\WS\PLOS\Modelos\PED_Export_OPTIMIZADOR_Alimerka.csv' :
+table tin IN 'CSV' 'C:\Users\federico.munyoz\WS\PLOS\Modelos\PED_Export_OPTIMIZADOR_Carrefour.csv' :
 Items <- [NombreDeGrupo, ArticuloDelBalde], BaldesDelItem ~ CantidadDeBaldes, TipoDeBalde ~ TipoDeBalde, AltoDelBalde, AnchoDelBalde, LargoDelBalde;
 
 # Conjuntos a partir de los datos leidos
 
-set TiposDeBalde:= setof{(i,j) in Items} TipoDeBalde[i,j];
+#set TiposDeBalde:= setof{(i,j) in Items} TipoDeBalde[i,j];
+set TiposDeBalde:= {1,2};
 set Secciones:= setof{(i,j) in Items} substr(i, 2,1);
 set ItemsDeTipo{t in TiposDeBalde} := setof{(i,j) in Items: TipoDeBalde[i,j] = t}(i,j);
 set ItemsDeSeccion{s in Secciones} := setof{(i,j) in Items: substr(i,2,1) = s}(i,j);
@@ -157,7 +158,7 @@ display EsPaletCompletoDelItem;
 display {(i,j) in Items, k in 1..NumeroDePaletsPosibles: ItemEnPalet[i,j,k]>0}ItemEnPalet[i,j,k];
 #display {c in 1..ColumnasPorPalet, (i,j) in Items, k in 1..NumeroDePaletsPosibles:BaldesDelItemEnColumnaDelPalet[c,i,j,k]>0}BaldesDelItemEnColumnaDelPalet[c,i,j,k];
 #display {(i,j) in Items, k in 1..NumeroDePaletsPosibles:ItemEnPalet[i,j,k]>0 }ItemEnPalet[i,j,k];
-table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\Users\federico.munyoz\WS\PLOS\Modelos\TRMOSAICO_Alimerka_PLOS.csv":
+table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\Users\federico.munyoz\WS\PLOS\Modelos\TRMOSAICO_Carrefour_GLPK.csv":
 k, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k], c;
 printf '-----------------------------------------------\n';
 for {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%s\n', k, c, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j], substr(i,2,1);
