@@ -35,13 +35,14 @@
 # -------------------------------------------------------------
 # Parametros independientes
 # 
-param AltoDelPalet := 1950;
+param AltoDelPalet := 1600;
 param AnchoDelPalet := 800;
 param LargoDelPalet := 1200;
 param ColumnasPorPalet := 8;
 
 param BigM :=2;
 param BigM_DeColumna :=1000;
+param BigM_DePaletCompleto :=1000;
 
 # Conjuntos
 
@@ -66,12 +67,20 @@ set TiposDeBalde:= setof{(i,j) in Items} TipoDeBalde[i,j];
 set Secciones:= setof{(i,j) in Items} substr(i, 2,1);
 set ItemsDeTipo{t in TiposDeBalde} := setof{(i,j) in Items: TipoDeBalde[i,j] = t}(i,j);
 set ItemsDeSeccion{s in Secciones} := setof{(i,j) in Items: substr(i,2,1) = s}(i,j);
+set ItemsConPaletCompleto := setof{(i,j) in Items: floor((BaldesDelItem[i,j] * AnchoDelBalde[i,j] * LargoDelBalde[i,j] * AltoDelBalde[i,j]) / (AnchoDelPalet * LargoDelPalet * AltoDelPalet)) > 0}(i,j);
+display ItemsConPaletCompleto;
 
 param NumeroDePaletsPosibles :=100;
 param NumeroDeSecciones := card(Secciones);
 
 param TotalDeItemsDeTipo{(i,j) in Items, t in TiposDeBalde} := card({(l,m) in ItemsDeTipo[t]:i=l and j=m});
 param TotalDeItemsDeSeccion{(i,j) in Items, s in Secciones} := card({(l,m) in ItemsDeSeccion[s]:i=l and j=m});
+param BaldesDePaletCompleto{(i,j) in ItemsConPaletCompleto}:= AltoDelPalet div AltoDelBalde[i,j] * (if (i,j) in ItemsDeTipo[1] then 4 else 8);
+param NumeroDePaletsCompletos{(i,j) in ItemsConPaletCompleto}:= floor(BaldesDelItem[i,j] /(AltoDelPalet div AltoDelBalde[i,j] * (if (i,j) in ItemsDeTipo[1] then 4 else 8))); 
+
+
+display NumeroDePaletsCompletos;
+display BaldesDePaletCompleto;
 display TiposDeBalde;
 
 display Items;
@@ -81,6 +90,7 @@ display TiposDeBalde;
 #variables
 
 var PaletUsado{1..NumeroDePaletsPosibles}, binary;
+var EsPaletCompletoDelItem{k in 1..NumeroDePaletsPosibles,(i,j) in Items}, binary; 
 var ItemEnPalet{Items, 1..NumeroDePaletsPosibles}, binary;
 var TipoEstaEnPalet{TiposDeBalde, 1..NumeroDePaletsPosibles}, binary;
 var SeccionEstaEnPalet{Secciones, 1..NumeroDePaletsPosibles}, binary;
@@ -111,6 +121,13 @@ subject to LaSumaDeBaldesEnColumnaEsCoherente {c in 1..ColumnasPorPalet, k in 1.
 
 subject to PaletEsUsadoParaItem {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet}BaldesDelItemEnColumnaDelPalet[c,i,j,k] / BaldesDelItem[i,j] <= ItemEnPalet[i,j,k];
 subject to NumeroDeCortesEnFuncionDeBaldes {(i,j) in Items}: sum{c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles} BaldesDelItemEnColumnaDelPalet[c,i,j,k] >= BaldesDelItem[i,j];
+# Se debe primar al palet completo. Si un articulo genera palets completos en la solución debe haber tantos palets completos de ese artículo como sean posibles
+subject to NoEsPaletCompleto {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k])/ (BaldesDePaletCompleto[i,j] - 1) - BigM_DePaletCompleto * EsPaletCompletoDelItem[k,i,j] <= 1;
+subject to SiEsPaletCompleto {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k]) / BaldesDePaletCompleto[i,j] - BigM_DePaletCompleto * (1 - EsPaletCompletoDelItem[k,i,j]) <= 1;
+subject to PaletCompletoDebeEstarEnLaSolucion {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: EsPaletCompletoDelItem[k,i,j]<= ItemEnPalet[i,j,k];
+subject to DebeSerUnPaletCompleto {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: EsPaletCompletoDelItem[k,i,j]* BaldesDePaletCompleto[i,j] <= sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k]);
+# el numero de palets con un número de baldes > número de baldes de palet completo = Numero de palets completos:
+subject to NumeroDePaletsCompletosEnSolucion {(i,j) in ItemsConPaletCompleto}: sum{k in 1..NumeroDePaletsPosibles}EsPaletCompletoDelItem[k,i,j] = NumeroDePaletsCompletos[i,j];
 
 # Los baldes deben ser del mismo tipo. Para ello se usa la técnica de Big M.
 subject to ActivaTipoEstaEnPalet{tb in TiposDeBalde, (i,j) in ItemsDeTipo[tb], k in 1..NumeroDePaletsPosibles}: TipoEstaEnPalet[tb, k] >= 1 - BigM * (1 - ItemEnPalet[i,j,k]);
@@ -136,6 +153,7 @@ minimize NumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k];
 
 
 solve;
+display EsPaletCompletoDelItem;
 display {(i,j) in Items, k in 1..NumeroDePaletsPosibles: ItemEnPalet[i,j,k]>0}ItemEnPalet[i,j,k];
 #display {c in 1..ColumnasPorPalet, (i,j) in Items, k in 1..NumeroDePaletsPosibles:BaldesDelItemEnColumnaDelPalet[c,i,j,k]>0}BaldesDelItemEnColumnaDelPalet[c,i,j,k];
 #display {(i,j) in Items, k in 1..NumeroDePaletsPosibles:ItemEnPalet[i,j,k]>0 }ItemEnPalet[i,j,k];
