@@ -35,7 +35,7 @@
 # -------------------------------------------------------------
 # Parametros independientes
 # 
-param AltoDelPalet := 1900;
+param AltoDelPalet := 1850;
 param AnchoDelPalet := 800;
 param LargoDelPalet := 1200;
 param ColumnasPorPalet := 8;
@@ -58,7 +58,7 @@ param AltoDelBalde{(i,j) in Items};
 
 #Lectura de datos
 
-table tin IN 'CSV' 'C:\Users\federico.munyoz\WS\PLOS\Modelos\PED_Export_OPTIMIZADOR_Carrefour.csv' :
+table tin IN 'CSV' 'C:\Users\federico.munyoz\WS\PLOS\Modelos\PED_Export_OPTIMIZADOR_Makro.csv' :
 Items <- [NombreDeGrupo, ArticuloDelBalde], BaldesDelItem ~ CantidadDeBaldes, TipoDeBalde ~ TipoDeBalde, AltoDelBalde, AnchoDelBalde, LargoDelBalde;
 
 # Conjuntos a partir de los datos leidos
@@ -71,7 +71,7 @@ set ItemsDeSeccion{s in Secciones} := setof{(i,j) in Items: substr(i,2,1) = s}(i
 set ItemsConPaletCompleto := setof{(i,j) in Items: floor((BaldesDelItem[i,j] * AnchoDelBalde[i,j] * LargoDelBalde[i,j] * AltoDelBalde[i,j]) / (AnchoDelPalet * LargoDelPalet * AltoDelPalet)) > 0}(i,j);
 display ItemsConPaletCompleto;
 
-param NumeroDePaletsPosibles :=100;
+param NumeroDePaletsPosibles :=200;
 param NumeroDeSecciones := card(Secciones);
 
 param TotalDeItemsDeTipo{(i,j) in Items, t in TiposDeBalde} := card({(l,m) in ItemsDeTipo[t]:i=l and j=m});
@@ -158,7 +158,7 @@ display EsPaletCompletoDelItem;
 display {(i,j) in Items, k in 1..NumeroDePaletsPosibles: ItemEnPalet[i,j,k]>0}ItemEnPalet[i,j,k];
 #display {c in 1..ColumnasPorPalet, (i,j) in Items, k in 1..NumeroDePaletsPosibles:BaldesDelItemEnColumnaDelPalet[c,i,j,k]>0}BaldesDelItemEnColumnaDelPalet[c,i,j,k];
 #display {(i,j) in Items, k in 1..NumeroDePaletsPosibles:ItemEnPalet[i,j,k]>0 }ItemEnPalet[i,j,k];
-table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\Users\federico.munyoz\WS\PLOS\Modelos\TRMOSAICO_Carrefour_GLPK.csv":
+table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\Users\federico.munyoz\WS\PLOS\Modelos\TRMOSAICO_Makro_GLPK.csv":
 k, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k], c;
 printf '-----------------------------------------------\n';
 for {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%s\n', k, c, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j], substr(i,2,1);
