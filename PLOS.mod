@@ -146,8 +146,9 @@ subject to PaletUsadoEnLaSolucion {k in 1..NumeroDePaletsPosibles, (i,j) in Item
 
 # El minimo de palets debe ser al menos la capacidad de baldes en palets (lower bound)
 subject to MinimoNumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= NumeroDeSecciones;
-subject to MinimoNumeroDePalets_2: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= sum{(i,j) in Items} (AnchoDelBalde[i,j]*AltoDelBalde[i,j]*LargoDelBalde[i,j])/(AnchoDelPalet*AltoDelPalet*LargoDelPalet);
-
+subject to MinimoNumeroDePalets_2: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= sum{(i,j) in Items} (BaldesDelItem[i,j]*AnchoDelBalde[i,j]*AltoDelBalde[i,j]*LargoDelBalde[i,j])/(AnchoDelPalet*AltoDelPalet*LargoDelPalet);
+#subject to MinimoNumeroDePalets_3: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k]>=sum{(i,j) in ItemsDeTipo[1]}BaldesDelItem[i,j]*AltoDelBalde[i,j]/4/AltoDelPalet + sum{(i,j) in ItemsDeTipo[2]}BaldesDelItem[i,j]*AltoDelBalde[i,j]/8/AltoDelPalet;
+#subject to MinimoNumeroDePalets_3: sum{k in 1..NumeroDePalesPosibles} PaletUsado[k] >= sum{(i,j) in ItemsDeTipo[1]} AltoDelBalde[i,j] 
 # Objetivo
 minimize NumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k];
 #minimize NumeroDeFragmentos: sum {(i,j) in Items, k in 1..NumeroDePaletsPosibles} ItemEnPalet[i,j,k];
