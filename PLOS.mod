@@ -58,7 +58,7 @@ param AltoDelBalde{(i,j) in Items};
 
 #Lectura de datos
 
-table tin IN 'CSV' 'C:\Users\federico.munyoz\WS\PLOS\Modelos\PED_Export_OPTIMIZADOR_Makro.csv' :
+table tin IN 'CSV' 'C:\Users\federico.munyoz\WS\PLOS\Modelos\PED_Export_OPTIMIZADOR_Alimerka.csv' :
 Items <- [NombreDeGrupo, ArticuloDelBalde], BaldesDelItem ~ CantidadDeBaldes, TipoDeBalde ~ TipoDeBalde, AltoDelBalde, AnchoDelBalde, LargoDelBalde;
 
 # Conjuntos a partir de los datos leidos
@@ -71,11 +71,9 @@ set ItemsDeSeccion{s in Secciones} := setof{(i,j) in Items: substr(i,2,1) = s}(i
 set ItemsConPaletCompleto := setof{(i,j) in Items: floor((BaldesDelItem[i,j] * AnchoDelBalde[i,j] * LargoDelBalde[i,j] * AltoDelBalde[i,j]) / (AnchoDelPalet * LargoDelPalet * AltoDelPalet)) > 0}(i,j);
 display ItemsConPaletCompleto;
 
-param NumeroDePaletsPosibles :=200;
+param NumeroDePaletsPosibles :=10;
 param NumeroDeSecciones := card(Secciones);
 
-param TotalDeItemsDeTipo{(i,j) in Items, t in TiposDeBalde} := card({(l,m) in ItemsDeTipo[t]:i=l and j=m});
-param TotalDeItemsDeSeccion{(i,j) in Items, s in Secciones} := card({(l,m) in ItemsDeSeccion[s]:i=l and j=m});
 param BaldesDePaletCompleto{(i,j) in ItemsConPaletCompleto}:= AltoDelPalet div AltoDelBalde[i,j] * (if (i,j) in ItemsDeTipo[1] then 4 else 8);
 param NumeroDePaletsCompletos{(i,j) in ItemsConPaletCompleto}:= floor(BaldesDelItem[i,j] /(AltoDelPalet div AltoDelBalde[i,j] * (if (i,j) in ItemsDeTipo[1] then 4 else 8))); 
 
@@ -101,37 +99,47 @@ var BaldesDelItemEnColumnaDelPalet{c in 1..ColumnasPorPalet, (i,j) in Items, 1..
 #Restricciones generales del modelo
 
 # Para cada item, el total de baldes repartidos en columnas en los palets debe ser igual al total de baldes del item para el cliente. Los baldes de un item deben ser repartidos entre todos los palets.
-subject to II_TotalDeBaldesEnFragmentos {(i,j) in Items}: sum{c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles} BaldesDelItemEnColumnaDelPalet[c,i,j,k] = BaldesDelItem[i,j];
+subject to TotalDeBaldesEnFragmentos {(i,j) in Items}: sum{c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles} BaldesDelItemEnColumnaDelPalet[c,i,j,k] = BaldesDelItem[i,j];
 
 # Cuando el item (i,j) se encuentra en alguna columna del palet k entonces el item está en el palet.
-subject to IV_ElItemEstaEnElPalet {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k])/BaldesDelItem[i,j] <= ItemEnPalet[i,j,k];
+subject to ElItemEstaEnElPalet {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k]) <= ItemEnPalet[i,j,k] * BaldesDelItem[i,j];
 
 # Todo item debe estar en algún palet
-subject to _4_TodoItemEnAlgunPalet{(i,j) in Items}: sum{k in 1..NumeroDePaletsPosibles} ItemEnPalet[i,j,k] >= 1;
+subject to TodoItemEnAlgunPalet{(i,j) in Items}: sum{k in 1..NumeroDePaletsPosibles} ItemEnPalet[i,j,k] >= 1;
 
 #Restricciones de capacidad del palet. 
 
 #Cada columna no debe excederse
-subject to IIIa_CadaColumnaDelPaletNoDebeExcederse {c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}(BaldesDelItemEnColumnaDelPalet[c, i, j, k] * AltoDelBalde[i,j]) <= AltoDelPalet;
+subject to CadaColumnaDelPaletNoDebeExcederse {c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}(BaldesDelItemEnColumnaDelPalet[c, i, j, k] * AltoDelBalde[i,j]) <= AltoDelPalet;
+
 #Las columnas son maximo 4 si los baldes si el tipo de balde es 1
-subject to IIIb_LasColumnasSon4EnBaldesTipo1 {k in 1..NumeroDePaletsPosibles}: sum{c in 5..ColumnasPorPalet} BaldesEnColumnaDelPalet[c,k] - BigM_DeColumna * (1 - TipoEstaEnPalet[1, k]) <= 0;
+subject to LasColumnasSon4EnBaldesTipo1 {k in 1..NumeroDePaletsPosibles}: sum{c in 5..ColumnasPorPalet} BaldesEnColumnaDelPalet[c,k] - BigM_DeColumna * (1 - TipoEstaEnPalet[1, k]) <= 0;
 
 #Restricciones de coherencia del palet
 subject to LaSumaDeBaldesEsCoherente {k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet, (i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = sum{c in 1..ColumnasPorPalet}BaldesEnColumnaDelPalet[c, k];
+
 subject to LaSumaDeBaldesEnColumnaEsCoherente {c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles}: sum{(i,j) in Items}BaldesDelItemEnColumnaDelPalet[c, i, j, k] = BaldesEnColumnaDelPalet[c, k];
 
-subject to PaletEsUsadoParaItem {(i,j) in Items, k in 1..NumeroDePaletsPosibles}: sum{c in 1..ColumnasPorPalet}BaldesDelItemEnColumnaDelPalet[c,i,j,k] / BaldesDelItem[i,j] <= ItemEnPalet[i,j,k];
 subject to NumeroDeCortesEnFuncionDeBaldes {(i,j) in Items}: sum{c in 1..ColumnasPorPalet, k in 1..NumeroDePaletsPosibles} BaldesDelItemEnColumnaDelPalet[c,i,j,k] >= BaldesDelItem[i,j];
+
 # Se debe primar al palet completo. Si un articulo genera palets completos en la solución debe haber tantos palets completos de ese artículo como sean posibles
+
 subject to NoEsPaletCompleto {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k])/ (BaldesDePaletCompleto[i,j] - 1) - BigM_DePaletCompleto * EsPaletCompletoDelItem[k,i,j] <= 1;
+
 subject to SiEsPaletCompleto {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k]) / BaldesDePaletCompleto[i,j] - BigM_DePaletCompleto * (1 - EsPaletCompletoDelItem[k,i,j]) <= 1;
+
 subject to PaletCompletoDebeEstarEnLaSolucion {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: EsPaletCompletoDelItem[k,i,j]<= ItemEnPalet[i,j,k];
-subject to DebeSerUnPaletCompleto {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: EsPaletCompletoDelItem[k,i,j]* BaldesDePaletCompleto[i,j] <= sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k]);
+
+subject to DebeSerUnPaletCompleto {k in 1..NumeroDePaletsPosibles, (i,j) in ItemsConPaletCompleto}: sum{c in 1..ColumnasPorPalet}(BaldesDelItemEnColumnaDelPalet[c,i,j,k]) - EsPaletCompletoDelItem[k,i,j]* BaldesDePaletCompleto[i,j] >= 0 ;
+
+
 # el numero de palets con un número de baldes > número de baldes de palet completo = Numero de palets completos:
+display NumeroDePaletsCompletos;
 subject to NumeroDePaletsCompletosEnSolucion {(i,j) in ItemsConPaletCompleto}: sum{k in 1..NumeroDePaletsPosibles}EsPaletCompletoDelItem[k,i,j] = NumeroDePaletsCompletos[i,j];
 
 # Los baldes deben ser del mismo tipo. Para ello se usa la técnica de Big M.
 subject to ActivaTipoEstaEnPalet{tb in TiposDeBalde, (i,j) in ItemsDeTipo[tb], k in 1..NumeroDePaletsPosibles}: TipoEstaEnPalet[tb, k] >= 1 - BigM * (1 - ItemEnPalet[i,j,k]);
+
 # Los baldes deben ser de la misma sección. Para ello se usa la técnica de Big M.
 subject to ActivaSeccionEstaEnPalet{s in Secciones, (i,j) in ItemsDeSeccion[s], k in 1..NumeroDePaletsPosibles}: SeccionEstaEnPalet[s, k] >= 1 - BigM * (1 - ItemEnPalet[i,j,k]);
 
@@ -147,8 +155,10 @@ subject to PaletUsadoEnLaSolucion {k in 1..NumeroDePaletsPosibles, (i,j) in Item
 # El minimo de palets debe ser al menos la capacidad de baldes en palets (lower bound)
 subject to MinimoNumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= NumeroDeSecciones;
 subject to MinimoNumeroDePalets_2: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k] >= sum{(i,j) in Items} (BaldesDelItem[i,j]*AnchoDelBalde[i,j]*AltoDelBalde[i,j]*LargoDelBalde[i,j])/(AnchoDelPalet*AltoDelPalet*LargoDelPalet);
+
 #subject to MinimoNumeroDePalets_3: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k]>=sum{(i,j) in ItemsDeTipo[1]}BaldesDelItem[i,j]*AltoDelBalde[i,j]/4/AltoDelPalet + sum{(i,j) in ItemsDeTipo[2]}BaldesDelItem[i,j]*AltoDelBalde[i,j]/8/AltoDelPalet;
 #subject to MinimoNumeroDePalets_3: sum{k in 1..NumeroDePalesPosibles} PaletUsado[k] >= sum{(i,j) in ItemsDeTipo[1]} AltoDelBalde[i,j] 
+
 # Objetivo
 minimize NumeroDePalets: sum {k in 1..NumeroDePaletsPosibles} PaletUsado[k];
 #minimize NumeroDeFragmentos: sum {(i,j) in Items, k in 1..NumeroDePaletsPosibles} ItemEnPalet[i,j,k];
@@ -159,7 +169,7 @@ display EsPaletCompletoDelItem;
 display {(i,j) in Items, k in 1..NumeroDePaletsPosibles: ItemEnPalet[i,j,k]>0}ItemEnPalet[i,j,k];
 #display {c in 1..ColumnasPorPalet, (i,j) in Items, k in 1..NumeroDePaletsPosibles:BaldesDelItemEnColumnaDelPalet[c,i,j,k]>0}BaldesDelItemEnColumnaDelPalet[c,i,j,k];
 #display {(i,j) in Items, k in 1..NumeroDePaletsPosibles:ItemEnPalet[i,j,k]>0 }ItemEnPalet[i,j,k];
-table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\Users\federico.munyoz\WS\PLOS\Modelos\TRMOSAICO_Makro_GLPK.csv":
+table Salida {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} OUT "CSV" "C:\Users\federico.munyoz\WS\PLOS\Modelos\TRMOSAICO_Alimerka_GLPK.csv":
 k, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k], c;
 printf '-----------------------------------------------\n';
 for {k in 1..NumeroDePaletsPosibles, c in 1..ColumnasPorPalet, (i,j) in Items: BaldesDelItemEnColumnaDelPalet[c,i,j,k] > 0} printf 'Palet: %d Columna: %d, %s %s, Baldes: %d Tipo de Balde:%d Seccion:%s\n', k, c, i, j, BaldesDelItemEnColumnaDelPalet[c,i,j,k],TipoDeBalde[i,j], substr(i,2,1);
